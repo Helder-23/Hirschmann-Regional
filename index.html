@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Encadeamentos de Hirschmann</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f14;
+    --bg2: #13161e;
+    --bg3: #1a1e29;
+    --bg4: #222738;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8eaf0;
+    --text2: #8b90a0;
+    --text3: #555b6e;
+    --amber: #e8a030;
+    --amber-dim: rgba(232,160,48,0.15);
+    --amber-glow: rgba(232,160,48,0.3);
+    --blue: #4a9eff;
+    --blue-dim: rgba(74,158,255,0.12);
+    --blue-glow: rgba(74,158,255,0.25);
+    --green: #42c97a;
+    --green-dim: rgba(66,201,122,0.12);
+    --red: #ff5e7a;
+    --red-dim: rgba(255,94,122,0.12);
+    --purple: #a076f9;
+    --purple-dim: rgba(160,118,249,0.12);
+    --gray: #4a5068;
+    --gray-dim: rgba(74,80,104,0.15);
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Inter', sans-serif;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    overflow: hidden;
+  }
+
+  #app {
+    display: grid;
+    grid-template-columns: 260px 1fr 300px;
+    grid-template-rows: 52px 1fr 40px;
+    height: 100vh;
+    gap: 0;
+  }
+
+  /* ── TOPBAR ── */
+  #topbar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    gap: 16px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; font-weight: 600; letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .logo-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber-glow);
+  }
+  .top-filters {
+    display: flex; gap: 6px; align-items: center;
+  }
+  .filter-btn {
+    font-size: 11px; font-weight: 500;
+    padding: 5px 12px; border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: transparent; color: var(--text2);
+    cursor: pointer; transition: all .15s;
+    font-family: var(--sans);
+    white-space: nowrap;
+  }
+  .filter-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+  .filter-btn.active {
+    color: var(--bg);
+    border-color: transparent;
+  }
+  .filter-btn.active.all   { background: var(--text2); }
+  .filter-btn.active.fwd   { background: var(--blue); }
+  .filter-btn.active.bwd   { background: var(--amber); }
+  .filter-btn.active.key   { background: var(--green); }
+  .top-right { display: flex; align-items: center; gap: 10px; }
+  .top-stat {
+    font-size: 11px; color: var(--text3);
+    font-family: var(--mono);
+    white-space: nowrap;
+  }
+  .top-stat span { color: var(--amber); }
+
+  /* ── LEFT PANEL ── */
+  #left {
+    border-right: 1px solid var(--border);
+    background: var(--bg2);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 14px 0;
+  }
+  .panel-section-title {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+    color: var(--text3); text-transform: uppercase;
+    padding: 0 16px 8px;
+  }
+  .sector-list-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px; cursor: pointer;
+    transition: background .12s;
+    border-left: 2px solid transparent;
+  }
+  .sector-list-item:hover { background: var(--bg3); }
+  .sector-list-item.selected {
+    background: var(--bg4);
+    border-left-color: var(--amber);
+  }
+  .sector-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+  .sector-name-col { flex: 1; min-width: 0; }
+  .sector-name {
+    font-size: 12px; font-weight: 500; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .sector-type {
+    font-size: 10px; color: var(--text3); margin-top: 1px;
+  }
+  .sector-bars {
+    display: flex; flex-direction: column; gap: 3px; width: 50px;
+  }
+  .mini-bar-wrap { height: 3px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
+  .mini-bar { height: 100%; border-radius: 2px; }
+  .mini-bar.fwd { background: var(--blue); }
+  .mini-bar.bwd { background: var(--amber); }
+
+  /* ── CANVAS ── */
+  #canvas-area {
+    position: relative; overflow: hidden;
+    background: var(--bg);
+  }
+  #canvas-area canvas { display: block; }
+  .canvas-hint {
+    position: absolute; bottom: 14px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px; color: var(--text3);
+    pointer-events: none; white-space: nowrap;
+  }
+  #selected-overlay {
+    position: absolute; top: 14px; left: 14px;
+    display: none;
+  }
+  #selected-overlay.visible { display: block; }
+  .sel-badge {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.05em;
+    padding: 4px 10px; border-radius: 20px;
+    background: var(--amber); color: var(--bg);
+  }
+
+  /* ── RIGHT PANEL ── */
+  #right {
+    border-left: 1px solid var(--border);
+    background: var(--bg2);
+    overflow-y: auto; overflow-x: hidden;
+    padding: 16px;
+  }
+  .rp-empty {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; height: 200px;
+    color: var(--text3); font-size: 12px; text-align: center;
+    gap: 8px;
+  }
+  .rp-empty-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1px dashed var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .rp-title {
+    font-size: 15px; font-weight: 600; margin-bottom: 4px;
+  }
+  .rp-type {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.06em;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 4px;
+    display: inline-block; margin-bottom: 14px;
+  }
+  .rp-metrics {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    margin-bottom: 16px;
+  }
+  .rp-metric {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .rp-metric-label {
+    font-size: 10px; color: var(--text3); margin-bottom: 5px;
+    font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .rp-metric-val {
+    font-size: 22px; font-weight: 600; font-family: var(--mono);
+  }
+  .rp-metric-val.fwd { color: var(--blue); }
+  .rp-metric-val.bwd { color: var(--amber); }
+
+  .rp-bar-row { margin-bottom: 14px; }
+  .rp-bar-label {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--text2); margin-bottom: 4px;
+  }
+  .rp-bar-track {
+    height: 5px; background: var(--bg4); border-radius: 3px; overflow: hidden;
+  }
+  .rp-bar-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+  .rp-bar-fill.fwd { background: var(--blue); }
+  .rp-bar-fill.bwd { background: var(--amber); }
+
+  .rp-section { margin-bottom: 16px; }
+  .rp-section-title {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text3); margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .rp-section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .link-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 6px;
+    cursor: pointer; transition: background .12s;
+    margin-bottom: 3px;
+  }
+  .link-row:hover { background: var(--bg3); }
+  .link-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .link-name { font-size: 12px; flex: 1; }
+  .link-weight {
+    font-size: 11px; font-family: var(--mono);
+    padding: 2px 7px; border-radius: 4px;
+  }
+  .link-weight.fwd { background: var(--blue-dim); color: var(--blue); }
+  .link-weight.bwd { background: var(--amber-dim); color: var(--amber); }
+
+  .desc-block {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-left: 3px solid var(--amber);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 12px; font-size: 12px;
+    color: var(--text2); line-height: 1.6;
+    margin-bottom: 14px;
+  }
+
+  /* ── BOTTOM BAR ── */
+  #bottombar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 20px;
+    border-top: 1px solid var(--border);
+    background: var(--bg2);
+    font-size: 11px; color: var(--text3); font-family: var(--mono);
+  }
+  .legend-strip { display: flex; gap: 16px; }
+  .leg-item { display: flex; align-items: center; gap: 6px; }
+  .leg-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .leg-line-fwd {
+    width: 18px; height: 0; border-top: 1.5px dashed var(--blue); opacity: .7;
+  }
+  .leg-line-bwd {
+    width: 18px; height: 0; border-top: 1.5px solid var(--amber); opacity: .7;
+  }
+
+  /* ── TOOLTIP ── */
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 100;
+    background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 12px; opacity: 0; transition: opacity .1s;
+    max-width: 200px; min-width: 150px;
+  }
+  .tt-name { font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+  .tt-row { display: flex; justify-content: space-between; gap: 12px;
+            color: var(--text2); margin-top: 3px; font-size: 11px; }
+  .tt-val { font-family: var(--mono); font-weight: 500; color: var(--text); }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div class="logo">
+      <div class="logo-dot"></div>
+      Encadeamentos de Hirschmann
+    </div>
+    <div class="top-filters">
+      <button class="filter-btn active all" onclick="setMode('all',this)">Todos os elos</button>
+      <button class="filter-btn" onclick="setMode('fwd',this)">Para frente ↗</button>
+      <button class="filter-btn" onclick="setMode('bwd',this)">Para trás ↙</button>
+      <button class="filter-btn" onclick="setMode('key',this)">Setores-chave</button>
+    </div>
+    <div class="top-right">
+      <span class="top-stat">setores: <span id="stat-sectors">—</span></span>
+      <span class="top-stat">elos: <span id="stat-links">—</span></span>
+      <span class="top-stat">setor-chave: <span id="stat-key">—</span></span>
+    </div>
+  </div>
+
+  <!-- LEFT: sector list -->
+  <div id="left">
+    <div class="panel-section-title">Setores</div>
+    <div id="sector-list"></div>
+  </div>
+
+  <!-- CENTER: canvas -->
+  <div id="canvas-area">
+    <canvas id="cvs"></canvas>
+    <div class="canvas-hint" id="canvas-hint">Clique em um setor ou encadeamento para inspecionar</div>
+    <div id="selected-overlay"><span class="sel-badge" id="sel-badge-text"></span></div>
+  </div>
+
+  <!-- RIGHT: detail panel -->
+  <div id="right">
+    <div id="rp-content">
+      <div class="rp-empty">
+        <div class="rp-empty-icon">↗</div>
+        <div>Selecione um setor<br>para ver os encadeamentos</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOMBAR -->
+  <div id="bottombar">
+    <div class="legend-strip">
+      <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Setor-chave</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--amber)"></div>Setor líder</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--blue)"></div>Setor base</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--gray)"></div>Isolado</div>
+      <div class="leg-item"><div class="leg-line-bwd"></div>Para trás</div>
+      <div class="leg-item"><div class="leg-line-fwd"></div>Para frente</div>
+    </div>
+    <div id="bottom-info" style="color:var(--text3)">Baseado na teoria de desenvolvimento econômico de Albert Hirschmann (1958)</div>
+  </div>
+</div>
+
+<div id="tooltip">
+  <div class="tt-name" id="tt-name"></div>
+  <div class="tt-row"><span>Enc. para frente</span><span class="tt-val" id="tt-fwd"></span></div>
+  <div class="tt-row"><span>Enc. para trás</span><span class="tt-val" id="tt-bwd"></span></div>
+  <div class="tt-row"><span>Classificação</span><span class="tt-val" id="tt-cls"></span></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════
+const sectors = [
+  { id:0,  name:"Agricultura",      short:"Agro",    desc:"Fornece matérias-primas vegetais e animais. Setor primário com alto poder de encadeamento para frente." },
+  { id:1,  name:"Pecuária",         short:"Pec.",    desc:"Fornece couro, lã e alimentos de origem animal. Estreitamente ligada ao processamento de alimentos." },
+  { id:2,  name:"Mineração",        short:"Min.",    desc:"Extrai minérios metálicos e não-metálicos. Base da cadeia siderúrgica e química." },
+  { id:3,  name:"Ind. Química",     short:"Quím.",   desc:"Processa insumos primários em fertilizantes, plásticos e solventes. Setor intermediário denso." },
+  { id:4,  name:"Siderurgia",       short:"Sider.",  desc:"Transforma minério de ferro em aço. Elevado poder de encadeamento para trás e para frente." },
+  { id:5,  name:"Ind. Têxtil",      short:"Têxt.",   desc:"Transforma fibras em tecidos. Conecta agricultura/pecuária ao varejo de vestuário." },
+  { id:6,  name:"Máquinas",         short:"Máq.",    desc:"Produz bens de capital. Compra aço e componentes; vende para todos os setores produtivos." },
+  { id:7,  name:"Construção Civil", short:"Const.",  desc:"Utiliza insumos de múltiplos setores. Grande absorvedora de aço, cimento e mão de obra." },
+  { id:8,  name:"Alimentos",        short:"Alim.",   desc:"Beneficia e embala produtos agrícolas. Setor com amplo encadeamento para trás." },
+  { id:9,  name:"Energia",          short:"Energ.",  desc:"Fornece eletricidade e combustíveis para toda a economia. Alto encadeamento para frente." },
+  { id:10, name:"Transporte",       short:"Transp.", desc:"Viabiliza logística entre setores. Compra energia e equipamentos; vende serviços a todos." },
+  { id:11, name:"Serviços Fin.",    short:"Fin.",    desc:"Crédito, seguros e capital. Encadeamento para frente difuso para toda a cadeia produtiva." },
+  { id:12, name:"Comércio",         short:"Com.",    desc:"Distribui a produção ao consumidor final. Encadeamento para trás com todos os setores." },
+  { id:13, name:"Tecnologia",       short:"Tech.",   desc:"Produz software e equipamentos. Encadeamento para frente crescente na era digital." },
+];
+
+// [from, to, weight]  — weight in [0,1]
+// interpretation: "to" buys from "from" (backward linkage for "to", forward linkage for "from")
+const links = [
+  [0,  3, 0.70], // Agro → Química (fertilizantes/óleos)
+  [0,  8, 0.95], // Agro → Alimentos
+  [0,  5, 0.65], // Agro → Têxtil (algodão)
+  [1,  5, 0.55], // Pec. → Têxtil (lã/couro)
+  [1,  8, 0.80], // Pec. → Alimentos (carne/laticínios)
+  [2,  3, 0.60], // Min. → Química
+  [2,  4, 0.90], // Min. → Siderurgia
+  [3,  5, 0.50], // Quím. → Têxtil (corantes/sintéticos)
+  [3,  6, 0.55], // Quím. → Máquinas (lubrificantes)
+  [3,  7, 0.60], // Quím. → Construção (cimento/resinas)
+  [3,  8, 0.45], // Quím. → Alimentos (conservantes)
+  [4,  6, 0.85], // Sider. → Máquinas
+  [4,  7, 0.90], // Sider. → Construção
+  [4, 10, 0.55], // Sider. → Transporte (carrocerias/trilhos)
+  [6,  7, 0.70], // Máq. → Construção (equip. de obra)
+  [6,  9, 0.60], // Máq. → Energia (geradores/turbinas)
+  [6, 13, 0.50], // Máq. → Tecnologia (hardware)
+  [9,  0, 0.40], // Energia → Agro (irrigação/mecanização)
+  [9,  3, 0.50], // Energia → Química (processo)
+  [9,  4, 0.65], // Energia → Siderurgia (fornos)
+  [9,  5, 0.35], // Energia → Têxtil
+  [9,  6, 0.45], // Energia → Máquinas
+  [9,  7, 0.40], // Energia → Construção
+  [9, 10, 0.75], // Energia → Transporte (combustível)
+  [10, 8, 0.45], // Transp. → Alimentos (logística)
+  [10,12, 0.60], // Transp. → Comércio
+  [11, 6, 0.35], // Fin. → Máquinas (crédito)
+  [11, 7, 0.50], // Fin. → Construção (financiamentos)
+  [11,13, 0.40], // Fin. → Tecnologia
+  [8, 12, 0.70], // Alimentos → Comércio
+  [5, 12, 0.65], // Têxtil → Comércio
+  [13, 6, 0.45], // Tech. → Máquinas (automação)
+  [13,11, 0.40], // Tech. → Fin. (fintech)
+  [13,12, 0.50], // Tech. → Comércio (e-commerce)
+];
+
+// ═══════════════════════════════════════════════════════════
+// COMPUTE INDICES
+// ═══════════════════════════════════════════════════════════
+const n = sectors.length;
+const fwdRaw = new Array(n).fill(0);
+const bwdRaw = new Array(n).fill(0);
+const sectorLinks = sectors.map(() => ({ out: [], in: [] }));
+
+links.forEach(([from, to, w]) => {
+  fwdRaw[from] += w;
+  bwdRaw[to]   += w;
+  sectorLinks[from].out.push({ id: to,   w });
+  sectorLinks[to].in.push(   { id: from, w });
+});
+
+const maxFwd = Math.max(...fwdRaw);
+const maxBwd = Math.max(...bwdRaw);
+const normFwd = fwdRaw.map(v => v / maxFwd);
+const normBwd = bwdRaw.map(v => v / maxBwd);
+
+function classify(i) {
+  const f = normFwd[i] > 0.45, b = normBwd[i] > 0.45;
+  if (f && b) return 'key';
+  if (b)      return 'leader';
+  if (f)      return 'base';
+  return 'isolated';
+}
+
+const CLASS_COLOR = {
+  key:      { fill: '#42c97a', stroke: '#2a9456', text: '#0d1a12', label: 'Setor-chave',  varFill: 'var(--green)',  varDim: 'var(--green-dim)'  },
+  leader:   { fill: '#e8a030', stroke: '#b07020', text: '#1a1000', label: 'Setor líder',  varFill: 'var(--amber)',  varDim: 'var(--amber-dim)'  },
+  base:     { fill: '#4a9eff', stroke: '#2a6fbf', text: '#001020', label: 'Setor base',   varFill: 'var(--blue)',   varDim: 'var(--blue-dim)'   },
+  isolated: { fill: '#4a5068', stroke: '#323548', text: '#e8eaf0', label: 'Isolado',       varFill: 'var(--gray)',   varDim: 'var(--gray-dim)'   },
+};
+
+// ═══════════════════════════════════════════════════════════
+// LAYOUT — force-directed positions (precomputed for stability)
+// ═══════════════════════════════════════════════════════════
+const posTemplate = [
+  {x:0.12,y:0.20}, // 0  Agro
+  {x:0.12,y:0.55}, // 1  Pec.
+  {x:0.25,y:0.72}, // 2  Min.
+  {x:0.38,y:0.18}, // 3  Quím.
+  {x:0.40,y:0.52}, // 4  Sider.
+  {x:0.22,y:0.35}, // 5  Têxt.
+  {x:0.58,y:0.30}, // 6  Máq.
+  {x:0.60,y:0.62}, // 7  Const.
+  {x:0.25,y:0.88}, // 8  Alim.
+  {x:0.52,y:0.80}, // 9  Energ.
+  {x:0.72,y:0.72}, // 10 Transp.
+  {x:0.80,y:0.20}, // 11 Fin.
+  {x:0.88,y:0.52}, // 12 Com.
+  {x:0.78,y:0.42}, // 13 Tech.
+];
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let mode = 'all';
+let selectedSector = null;
+let selectedLink = null;   // {from, to}
+let hoveredSector = null;
+let nodes = [];
+
+// ═══════════════════════════════════════════════════════════
+// CANVAS SETUP
+// ═══════════════════════════════════════════════════════════
+const cvs = document.getElementById('cvs');
+const ctx = cvs.getContext('2d');
+const area = document.getElementById('canvas-area');
+let W, H;
+
+function resize() {
+  W = area.clientWidth;
+  H = area.clientHeight;
+  cvs.width  = W * devicePixelRatio;
+  cvs.height = H * devicePixelRatio;
+  cvs.style.width  = W + 'px';
+  cvs.style.height = H + 'px';
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  buildNodes();
+  draw();
+}
+
+function buildNodes() {
+  const pad = 60;
+  const baseR = Math.max(18, Math.min(26, W * 0.028));
+  nodes = sectors.map((s, i) => {
+    const p = posTemplate[i];
+    return {
+      ...s,
+      px: pad + p.x * (W - pad*2),
+      py: pad + p.y * (H - pad*2),
+      r: baseR + Math.round((normFwd[i] + normBwd[i]) * 0.5 * 7),
+      cls: classify(i),
+      fwd: normFwd[i],
+      bwd: normBwd[i],
+    };
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// DRAW
+// ═══════════════════════════════════════════════════════════
+function linkIsActive(from, to) {
+  if (selectedLink) return from === selectedLink.from && to === selectedLink.to;
+  if (selectedSector !== null) return from === selectedSector || to === selectedSector;
+  return true;
+}
+
+function sectorIsActive(i) {
+  if (selectedLink) return i === selectedLink.from || i === selectedLink.to;
+  if (selectedSector !== null) {
+    const adj = new Set([selectedSector]);
+    sectorLinks[selectedSector].out.forEach(l => adj.add(l.id));
+    sectorLinks[selectedSector].in.forEach(l  => adj.add(l.id));
+    return adj.has(i);
+  }
+  return true;
+}
+
+function linkVisible(from, to) {
+  if (mode === 'all' || mode === 'key') return true;
+  // In 'fwd' mode show the forward arrow (from→to means from sells to to)
+  // In 'bwd' mode show backward arrow (to buys from from)
+  return true; // we control visibility via alpha
+}
+
+function drawEdge(from, to, w, alpha) {
+  const a = nodes[from], b = nodes[to];
+  const dx = b.px - a.px, dy = b.py - a.py;
+  const len = Math.sqrt(dx*dx + dy*dy);
+  if (len < 1) return;
+  const ux = dx/len, uy = dy/len;
+
+  // We draw two arrows per link: backward (solid amber) and forward (dashed blue)
+  const lw = Math.max(0.8, w * 2.8);
+
+  // === BACKWARD ARROW: b ← a  (to buys from from) ===
+  if (mode !== 'fwd') {
+    const ex = a.px + ux * a.r + 2, ey = a.py + uy * a.r + 2;
+    const sx = b.px - ux * b.r - 2, sy = b.py - uy * b.r - 2;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = '#e8a030';
+    ctx.lineWidth = lw;
+    ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex + ux*9, ey + uy*9); ctx.stroke();
+    // arrowhead at a
+    const ang = Math.atan2(ey-sy, ex-sx);
+    ctx.fillStyle = '#e8a030';
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - Math.cos(ang-0.42)*9, ey - Math.sin(ang-0.42)*9);
+    ctx.lineTo(ex - Math.cos(ang+0.42)*9, ey - Math.sin(ang+0.42)*9);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // === FORWARD ARROW: a → b  (from sells to to) ===
+  if (mode !== 'bwd') {
+    const sx2 = a.px + ux * a.r + 2, sy2 = a.py + uy * a.r + 2;
+    const ex2 = b.px - ux * b.r - 2, ey2 = b.py - uy * b.r - 2;
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.75;
+    ctx.strokeStyle = '#4a9eff';
+    ctx.lineWidth = lw * 0.75;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(sx2, sy2); ctx.lineTo(ex2 - ux*9, ey2 - uy*9); ctx.stroke();
+    ctx.setLineDash([]);
+    const ang2 = Math.atan2(ey2-sy2, ex2-sx2);
+    ctx.fillStyle = '#4a9eff';
+    ctx.beginPath();
+    ctx.moveTo(ex2, ey2);
+    ctx.lineTo(ex2 - Math.cos(ang2-0.42)*8, ey2 - Math.sin(ang2-0.42)*8);
+    ctx.lineTo(ex2 - Math.cos(ang2+0.42)*8, ey2 - Math.sin(ang2+0.42)*8);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // -- GRID dots (subtle) --
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.025)';
+  for (let x = 30; x < W; x += 40)
+    for (let y = 30; y < H; y += 40) {
+      ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI*2); ctx.fill();
+    }
+  ctx.restore();
+
+  // -- EDGES --
+  const hasSelection = selectedSector !== null || selectedLink !== null;
+
+  links.forEach(([from, to, w]) => {
+    // key-mode filter
+    if (mode === 'key' && classify(from) !== 'key' && classify(to) !== 'key') return;
+
+    const active = linkIsActive(from, to);
+    let alpha;
+    if (!hasSelection) {
+      alpha = 0.35;
+    } else {
+      alpha = active ? 0.9 : 0.025;
+    }
+    drawEdge(from, to, w, alpha);
+  });
+
+  // -- NODES --
+  nodes.forEach((nd, i) => {
+    const c = CLASS_COLOR[nd.cls];
+    const isActive = sectorIsActive(i);
+    const isSel = selectedSector === i;
+    const alpha = hasSelection ? (isActive ? 1 : 0.1) : 1;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // glow for selected
+    if (isSel) {
+      ctx.shadowColor = c.fill;
+      ctx.shadowBlur = 22;
+    }
+
+    // circle
+    ctx.beginPath();
+    ctx.arc(nd.px, nd.py, nd.r + (isSel ? 3 : 0), 0, Math.PI*2);
+    ctx.fillStyle = c.fill;
+    ctx.fill();
+    ctx.strokeStyle = c.stroke;
+    ctx.lineWidth = isSel ? 2 : 0.8;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // label
+    const fs = Math.max(9, Math.min(11, nd.r * 0.48));
+    ctx.font = `600 ${fs}px var(--sans, sans-serif)`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = c.text;
+    ctx.fillText(nd.short, nd.px, nd.py);
+
+    // index badges (only when hovered or selected)
+    if (isSel || hoveredSector === i) {
+      const badgeY = nd.py - nd.r - 14;
+      ctx.font = `500 9px var(--mono, monospace)`;
+      ctx.fillStyle = '#4a9eff';
+      ctx.fillText(`↗${nd.fwd.toFixed(2)}`, nd.px - 18, badgeY);
+      ctx.fillStyle = '#e8a030';
+      ctx.fillText(`↙${nd.bwd.toFixed(2)}`, nd.px + 18, badgeY);
+    }
+
+    ctx.restore();
+  });
+
+  // -- SELECTED LINK highlight --
+  if (selectedLink) {
+    const a = nodes[selectedLink.from], b = nodes[selectedLink.to];
+    const linkW = links.find(l => l[0]===selectedLink.from && l[1]===selectedLink.to)?.[2] ?? 0;
+    // weight label mid-point
+    const mx = (a.px + b.px)/2, my = (a.py + b.py)/2;
+    ctx.save();
+    ctx.fillStyle = 'rgba(13,15,20,0.8)';
+    ctx.beginPath(); ctx.roundRect(mx-32, my-12, 64, 22, 4); ctx.fill();
+    ctx.font = '500 11px var(--mono, monospace)';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#e8a030';
+    ctx.fillText(`elo: ${linkW.toFixed(2)}`, mx, my);
+    ctx.restore();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// HIT TEST
+// ═══════════════════════════════════════════════════════════
+function hitNode(mx, my) {
+  for (let i = 0; i < nodes.length; i++) {
+    const nd = nodes[i];
+    if ((mx-nd.px)**2 + (my-nd.py)**2 <= (nd.r+6)**2) return i;
+  }
+  return null;
+}
+
+function hitEdge(mx, my) {
+  // Check proximity to any edge midpoint
+  for (const [from, to, w] of links) {
+    const a = nodes[from], b = nodes[to];
+    const mx2 = (a.px+b.px)/2, my2 = (a.py+b.py)/2;
+    if ((mx-mx2)**2 + (my-my2)**2 < 18**2) return {from, to};
+    // also line proximity
+    const dx = b.px-a.px, dy = b.py-a.py;
+    const len = Math.sqrt(dx*dx+dy*dy);
+    if (len < 1) continue;
+    const t = Math.max(0, Math.min(1, ((mx-a.px)*dx+(my-a.py)*dy)/(len*len)));
+    const px = a.px+t*dx, py = a.py+t*dy;
+    const dist = Math.sqrt((mx-px)**2+(my-py)**2);
+    if (dist < 7 && t > 0.15 && t < 0.85) return {from, to};
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════════════════════
+function getXY(e) {
+  const r = cvs.getBoundingClientRect();
+  return [e.clientX - r.left, e.clientY - r.top];
+}
+
+cvs.addEventListener('mousemove', e => {
+  const [mx, my] = getXY(e);
+  const hn = hitNode(mx, my);
+  const tt = document.getElementById('tooltip');
+
+  hoveredSector = hn;
+
+  if (hn !== null) {
+    const nd = nodes[hn];
+    const c = CLASS_COLOR[nd.cls];
+    document.getElementById('tt-name').textContent = nd.name;
+    document.getElementById('tt-fwd').textContent = nd.fwd.toFixed(3);
+    document.getElementById('tt-bwd').textContent = nd.bwd.toFixed(3);
+    document.getElementById('tt-cls').textContent = c.label;
+    let tx = e.clientX + 16, ty = e.clientY + 10;
+    if (tx + 210 > window.innerWidth) tx = e.clientX - 210;
+    tt.style.left = tx+'px'; tt.style.top = ty+'px'; tt.style.opacity = '1';
+    cvs.style.cursor = 'pointer';
+  } else {
+    const he = selectedSector === null ? hitEdge(mx, my) : null;
+    if (he) { cvs.style.cursor = 'pointer'; }
+    else    { cvs.style.cursor = 'default'; }
+    tt.style.opacity = '0';
+  }
+  draw();
+});
+
+cvs.addEventListener('click', e => {
+  const [mx, my] = getXY(e);
+  const hn = hitNode(mx, my);
+
+  if (hn !== null) {
+    selectedLink = null;
+    if (selectedSector === hn) {
+      selectedSector = null;
+    } else {
+      selectedSector = hn;
+    }
+    updateSidebar();
+    updateSectorList();
+  } else {
+    const he = hitEdge(mx, my);
+    if (he) {
+      selectedSector = null;
+      if (selectedLink && selectedLink.from === he.from && selectedLink.to === he.to) {
+        selectedLink = null;
+      } else {
+        selectedLink = he;
+      }
+      updateLinkPanel();
+      updateSectorList();
+    } else {
+      // click empty → deselect
+      selectedSector = null;
+      selectedLink = null;
+      updateSidebar();
+      updateSectorList();
+    }
+  }
+
+  const overlay = document.getElementById('selected-overlay');
+  if (selectedSector !== null) {
+    overlay.classList.add('visible');
+    document.getElementById('sel-badge-text').textContent = sectors[selectedSector].name;
+  } else {
+    overlay.classList.remove('visible');
+  }
+
+  draw();
+  updateBottomInfo();
+});
+
+cvs.addEventListener('mouseleave', () => {
+  document.getElementById('tooltip').style.opacity = '0';
+  hoveredSector = null;
+  draw();
+});
+
+// ═══════════════════════════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════════════════════════
+function updateSidebar() {
+  const rp = document.getElementById('rp-content');
+  if (selectedSector === null) {
+    rp.innerHTML = `
+      <div class="rp-empty">
+        <div class="rp-empty-icon">↗</div>
+        <div>Selecione um setor<br>para ver os encadeamentos</div>
+      </div>`;
+    return;
+  }
+  const i = selectedSector;
+  const s = sectors[i];
+  const c = CLASS_COLOR[classify(i)];
+  const outs = sectorLinks[i].out.sort((a,b) => b.w - a.w);
+  const ins  = sectorLinks[i].in.sort( (a,b) => b.w - a.w);
+
+  const outLinks = outs.map(l => {
+    const tc = CLASS_COLOR[classify(l.id)];
+    return `<div class="link-row" onclick="selectSector(${l.id})">
+      <div class="link-dot" style="background:${tc.fill}"></div>
+      <span class="link-name">${sectors[l.id].name}</span>
+      <span class="link-weight fwd">${l.w.toFixed(2)}</span>
+    </div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:12px;padding:6px 10px">Nenhum</div>';
+
+  const inLinks = ins.map(l => {
+    const tc = CLASS_COLOR[classify(l.id)];
+    return `<div class="link-row" onclick="selectSector(${l.id})">
+      <div class="link-dot" style="background:${tc.fill}"></div>
+      <span class="link-name">${sectors[l.id].name}</span>
+      <span class="link-weight bwd">${l.w.toFixed(2)}</span>
+    </div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:12px;padding:6px 10px">Nenhum</div>';
+
+  rp.innerHTML = `
+    <div class="rp-title">${s.name}</div>
+    <span class="rp-type" style="background:${c.fill}22;color:${c.fill}">${c.label}</span>
+    <div class="desc-block">${s.desc}</div>
+    <div class="rp-metrics">
+      <div class="rp-metric">
+        <div class="rp-metric-label">Para frente</div>
+        <div class="rp-metric-val fwd">${normFwd[i].toFixed(3)}</div>
+      </div>
+      <div class="rp-metric">
+        <div class="rp-metric-label">Para trás</div>
+        <div class="rp-metric-val bwd">${normBwd[i].toFixed(3)}</div>
+      </div>
+    </div>
+    <div class="rp-bar-row">
+      <div class="rp-bar-label"><span>Enc. para frente</span><span>${normFwd[i].toFixed(2)}</span></div>
+      <div class="rp-bar-track"><div class="rp-bar-fill fwd" style="width:${normFwd[i]*100}%"></div></div>
+    </div>
+    <div class="rp-bar-row">
+      <div class="rp-bar-label"><span>Enc. para trás</span><span>${normBwd[i].toFixed(2)}</span></div>
+      <div class="rp-bar-track"><div class="rp-bar-fill bwd" style="width:${normBwd[i]*100}%"></div></div>
+    </div>
+    <div class="rp-section">
+      <div class="rp-section-title">Vende para (enc. para frente)</div>
+      ${outLinks}
+    </div>
+    <div class="rp-section">
+      <div class="rp-section-title">Compra de (enc. para trás)</div>
+      ${inLinks}
+    </div>`;
+}
+
+function updateLinkPanel() {
+  const rp = document.getElementById('rp-content');
+  if (!selectedLink) { updateSidebar(); return; }
+  const {from, to} = selectedLink;
+  const lnk = links.find(l => l[0]===from && l[1]===to);
+  const w = lnk ? lnk[2] : 0;
+  const cf = CLASS_COLOR[classify(from)];
+  const ct = CLASS_COLOR[classify(to)];
+  rp.innerHTML = `
+    <div class="rp-title" style="font-size:13px;margin-bottom:10px">Encadeamento selecionado</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <span style="background:${cf.fill}22;color:${cf.fill};padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600">${sectors[from].name}</span>
+      <span style="color:var(--text3);font-size:14px">→</span>
+      <span style="background:${ct.fill}22;color:${ct.fill};padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600">${sectors[to].name}</span>
+    </div>
+    <div class="rp-metrics">
+      <div class="rp-metric">
+        <div class="rp-metric-label">Intensidade do elo</div>
+        <div class="rp-metric-val fwd">${w.toFixed(3)}</div>
+      </div>
+      <div class="rp-metric">
+        <div class="rp-metric-label">Tipo de elo</div>
+        <div class="rp-metric-val" style="font-size:14px;color:var(--amber)">Trás ↙ / Frente ↗</div>
+      </div>
+    </div>
+    <div class="desc-block">
+      <strong>${sectors[from].name}</strong> é fornecedor de insumos para <strong>${sectors[to].name}</strong>. 
+      Este é um encadeamento <em>para trás</em> do ponto de vista de ${sectors[to].name}, 
+      e <em>para frente</em> do ponto de vista de ${sectors[from].name}.
+      Intensidade normalizada: <strong>${w.toFixed(2)}</strong>.
+    </div>
+    <div class="rp-section">
+      <div class="rp-section-title">Fornecedor: ${sectors[from].name}</div>
+      <div class="rp-bar-row">
+        <div class="rp-bar-label"><span>Enc. para frente total</span><span>${normFwd[from].toFixed(2)}</span></div>
+        <div class="rp-bar-track"><div class="rp-bar-fill fwd" style="width:${normFwd[from]*100}%"></div></div>
+      </div>
+    </div>
+    <div class="rp-section">
+      <div class="rp-section-title">Comprador: ${sectors[to].name}</div>
+      <div class="rp-bar-row">
+        <div class="rp-bar-label"><span>Enc. para trás total</span><span>${normBwd[to].toFixed(2)}</span></div>
+        <div class="rp-bar-track"><div class="rp-bar-fill bwd" style="width:${normBwd[to]*100}%"></div></div>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <button style="font-size:11px;padding:5px 12px;border:1px solid var(--border2);border-radius:6px;background:transparent;color:var(--text2);cursor:pointer;font-family:var(--sans)" onclick="selectSector(${from})">Inspecionar ${sectors[from].name} →</button>
+      &nbsp;
+      <button style="font-size:11px;padding:5px 12px;border:1px solid var(--border2);border-radius:6px;background:transparent;color:var(--text2);cursor:pointer;font-family:var(--sans)" onclick="selectSector(${to})">Inspecionar ${sectors[to].name} →</button>
+    </div>`;
+}
+
+function selectSector(i) {
+  selectedLink = null;
+  selectedSector = i;
+  updateSidebar();
+  updateSectorList();
+  document.getElementById('selected-overlay').classList.add('visible');
+  document.getElementById('sel-badge-text').textContent = sectors[i].name;
+  draw();
+  updateBottomInfo();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SECTOR LIST (left panel)
+// ═══════════════════════════════════════════════════════════
+function buildSectorList() {
+  const list = document.getElementById('sector-list');
+  list.innerHTML = sectors.map((s, i) => {
+    const c = CLASS_COLOR[classify(i)];
+    return `<div class="sector-list-item" id="sli-${i}" onclick="selectSector(${i})">
+      <div class="sector-dot" style="background:${c.fill}"></div>
+      <div class="sector-name-col">
+        <div class="sector-name">${s.name}</div>
+        <div class="sector-type">${c.label}</div>
+      </div>
+      <div class="sector-bars">
+        <div class="mini-bar-wrap"><div class="mini-bar fwd" style="width:${normFwd[i]*100}%"></div></div>
+        <div class="mini-bar-wrap"><div class="mini-bar bwd" style="width:${normBwd[i]*100}%"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateSectorList() {
+  sectors.forEach((_, i) => {
+    const el = document.getElementById('sli-'+i);
+    if (el) el.classList.toggle('selected', i === selectedSector);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOP STATS
+// ═══════════════════════════════════════════════════════════
+function updateStats() {
+  const keys = sectors.filter((_, i) => classify(i) === 'key').map((s) => s.name);
+  document.getElementById('stat-sectors').textContent = n;
+  document.getElementById('stat-links').textContent = links.length;
+  document.getElementById('stat-key').textContent = keys.length;
+}
+
+function updateBottomInfo() {
+  const el = document.getElementById('bottom-info');
+  if (selectedSector !== null) {
+    const i = selectedSector;
+    el.textContent = `${sectors[i].name} — ${sectorLinks[i].out.length} elos para frente · ${sectorLinks[i].in.length} elos para trás`;
+  } else if (selectedLink) {
+    el.textContent = `Elo: ${sectors[selectedLink.from].name} → ${sectors[selectedLink.to].name}`;
+  } else {
+    el.textContent = 'Baseado na teoria de desenvolvimento econômico de Albert Hirschmann (1958)';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODE
+// ═══════════════════════════════════════════════════════════
+function setMode(m, btn) {
+  mode = m;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active','all','fwd','bwd','key'));
+  btn.classList.add('active', m);
+  selectedSector = null; selectedLink = null;
+  document.getElementById('selected-overlay').classList.remove('visible');
+  updateSidebar(); updateSectorList(); draw(); updateBottomInfo();
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+buildSectorList();
+updateStats();
+resize();
+window.addEventListener('resize', resize);
+</script>
+</body>
+</html>
