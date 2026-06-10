@@ -1,1 +1,0 @@
-# Hirschmann-Regional
