@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RIP — Estado do Rio de Janeiro (R3)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0d0f14; --bg2:#13161e; --bg3:#1a1e29; --bg4:#222738;
+    --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.13);
+    --text:#e8eaf0; --text2:#8b90a0; --text3:#555b6e;
+    --amber:#e8a030; --amber-dim:rgba(232,160,48,0.15); --amber-glow:rgba(232,160,48,0.35);
+    --blue:#4a9eff; --blue-dim:rgba(74,158,255,0.12); --blue-glow:rgba(74,158,255,0.28);
+    --green:#42c97a; --green-dim:rgba(66,201,122,0.12);
+    --red:#ff5e7a; --red-dim:rgba(255,94,122,0.12);
+    --purple:#a076f9; --purple-dim:rgba(160,118,249,0.12);
+    --gray:#4a5068; --gray-dim:rgba(74,80,104,0.15);
+    --mono:'IBM Plex Mono',monospace; --sans:'Inter',sans-serif;
+  }
+  html,body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:var(--sans); overflow:hidden; }
+  #app { display:grid; grid-template-columns:270px 1fr 310px; grid-template-rows:52px 1fr 40px; height:100vh; }
+
+  /* TOPBAR */
+  #topbar { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; padding:0 20px; border-bottom:1px solid var(--border); background:var(--bg2); gap:12px; }
+  .logo { display:flex; align-items:center; gap:10px; font-size:13px; font-weight:600; letter-spacing:.02em; white-space:nowrap; }
+  .logo-dot { width:8px; height:8px; border-radius:50%; background:var(--amber); box-shadow:0 0 10px var(--amber-glow); }
+  .logo-sub { font-size:11px; font-weight:400; color:var(--text3); margin-left:2px; }
+  .top-filters { display:flex; gap:5px; align-items:center; }
+  .filter-btn { font-size:11px; font-weight:500; padding:5px 11px; border-radius:6px; border:1px solid var(--border2); background:transparent; color:var(--text2); cursor:pointer; transition:all .15s; font-family:var(--sans); white-space:nowrap; }
+  .filter-btn:hover { color:var(--text); border-color:rgba(255,255,255,0.22); }
+  .filter-btn.active { color:var(--bg); border-color:transparent; }
+  .filter-btn.active.all { background:var(--text2); }
+  .filter-btn.active.fwd { background:var(--blue); }
+  .filter-btn.active.bwd { background:var(--amber); }
+  .filter-btn.active.key { background:var(--green); }
+  .filter-btn.active.pg  { background:var(--purple); }
+  .top-right { display:flex; align-items:center; gap:12px; }
+  .top-stat { font-size:11px; color:var(--text3); font-family:var(--mono); white-space:nowrap; }
+  .top-stat span { color:var(--amber); }
+
+  /* LEFT */
+  #left { border-right:1px solid var(--border); background:var(--bg2); overflow-y:auto; overflow-x:hidden; padding:12px 0; }
+  .panel-section-title { font-size:10px; font-weight:600; letter-spacing:.1em; color:var(--text3); text-transform:uppercase; padding:0 14px 8px; }
+  .sector-list-item { display:flex; align-items:center; gap:9px; padding:7px 14px; cursor:pointer; transition:background .12s; border-left:2px solid transparent; }
+  .sector-list-item:hover { background:var(--bg3); }
+  .sector-list-item.selected { background:var(--bg4); border-left-color:var(--amber); }
+  .sector-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .sector-name-col { flex:1; min-width:0; }
+  .sector-name { font-size:11.5px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sector-type { font-size:10px; color:var(--text3); margin-top:1px; }
+  .sector-bars { display:flex; flex-direction:column; gap:3px; width:52px; }
+  .mini-bar-wrap { height:3px; background:var(--bg4); border-radius:2px; overflow:hidden; }
+  .mini-bar { height:100%; border-radius:2px; }
+  .mini-bar.fwd { background:var(--blue); }
+  .mini-bar.bwd { background:var(--amber); }
+  .rank-num { font-size:10px; font-family:var(--mono); color:var(--text3); width:16px; flex-shrink:0; text-align:right; }
+
+  /* CANVAS */
+  #canvas-area { position:relative; overflow:hidden; background:var(--bg); }
+  #canvas-area canvas { display:block; }
+  .canvas-hint { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); font-size:11px; color:var(--text3); pointer-events:none; white-space:nowrap; }
+  #sel-overlay { position:absolute; top:12px; left:12px; display:none; }
+  #sel-overlay.visible { display:block; }
+  .sel-badge { font-size:11px; font-weight:600; letter-spacing:.04em; padding:4px 10px; border-radius:20px; background:var(--amber); color:var(--bg); }
+
+  /* RIGHT */
+  #right { border-left:1px solid var(--border); background:var(--bg2); overflow-y:auto; overflow-x:hidden; padding:14px; }
+  .rp-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:220px; color:var(--text3); font-size:12px; text-align:center; gap:10px; }
+  .rp-empty-icon { width:38px; height:38px; border-radius:50%; border:1px dashed var(--border2); display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .rp-title { font-size:14px; font-weight:600; margin-bottom:3px; }
+  .rp-rank { font-size:11px; color:var(--text3); margin-bottom:10px; font-family:var(--mono); }
+  .rp-type { font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; padding:3px 8px; border-radius:4px; display:inline-block; margin-bottom:12px; }
+  .rp-metrics { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-bottom:12px; }
+  .rp-metric { background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:9px 11px; }
+  .rp-metric-label { font-size:9px; color:var(--text3); margin-bottom:4px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; }
+  .rp-metric-val { font-size:19px; font-weight:600; font-family:var(--mono); }
+  .rp-metric-val.fwd { color:var(--blue); }
+  .rp-metric-val.bwd { color:var(--amber); }
+  .rp-metric-val.total { color:var(--green); }
+  .rp-metric-val.pg { color:var(--purple); }
+  .rp-bar-row { margin-bottom:10px; }
+  .rp-bar-label { display:flex; justify-content:space-between; font-size:11px; color:var(--text2); margin-bottom:4px; }
+  .rp-bar-track { height:5px; background:var(--bg4); border-radius:3px; overflow:hidden; }
+  .rp-bar-fill { height:100%; border-radius:3px; transition:width .4s; }
+  .rp-bar-fill.fwd { background:var(--blue); }
+  .rp-bar-fill.bwd { background:var(--amber); }
+  .rp-bar-fill.pg { background:var(--purple); }
+  .rp-section { margin-bottom:14px; }
+  .rp-section-title { font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--text3); margin-bottom:7px; display:flex; align-items:center; gap:8px; }
+  .rp-section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+  .link-row { display:flex; align-items:center; gap:8px; padding:6px 9px; border-radius:6px; cursor:pointer; transition:background .12s; margin-bottom:2px; }
+  .link-row:hover { background:var(--bg3); }
+  .link-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .link-name { font-size:11.5px; flex:1; line-height:1.3; }
+  .link-weight { font-size:10px; font-family:var(--mono); padding:2px 6px; border-radius:4px; white-space:nowrap; }
+  .link-weight.fwd { background:var(--blue-dim); color:var(--blue); }
+  .link-weight.bwd { background:var(--amber-dim); color:var(--amber); }
+  .desc-block { background:var(--bg3); border:1px solid var(--border); border-left:3px solid var(--amber); border-radius:0 8px 8px 0; padding:9px 11px; font-size:11.5px; color:var(--text2); line-height:1.6; margin-bottom:12px; }
+  .ihr-block { background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:9px 11px; margin-bottom:12px; }
+  .ihr-label { font-size:10px; color:var(--text3); font-weight:600; letter-spacing:.06em; text-transform:uppercase; margin-bottom:5px; }
+  .ihr-val { font-size:15px; font-weight:600; font-family:var(--mono); color:var(--green); }
+  .ihr-sub { font-size:10px; color:var(--text3); margin-top:2px; }
+
+  /* BOTTOMBAR */
+  #bottombar { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; padding:0 20px; border-top:1px solid var(--border); background:var(--bg2); font-size:11px; color:var(--text3); font-family:var(--mono); }
+  .legend-strip { display:flex; gap:14px; }
+  .leg-item { display:flex; align-items:center; gap:6px; }
+  .leg-dot { width:7px; height:7px; border-radius:50%; }
+  .leg-line-fwd { width:18px; height:0; border-top:1.5px dashed var(--blue); opacity:.7; }
+  .leg-line-bwd { width:18px; height:0; border-top:1.5px solid var(--amber); opacity:.7; }
+
+  /* TOOLTIP */
+  #tooltip { position:fixed; pointer-events:none; z-index:100; background:var(--bg3); border:1px solid var(--border2); border-radius:8px; padding:10px 13px; font-size:12px; opacity:0; transition:opacity .1s; max-width:210px; min-width:160px; }
+  .tt-name { font-weight:600; font-size:12px; margin-bottom:6px; line-height:1.3; }
+  .tt-row { display:flex; justify-content:space-between; gap:10px; color:var(--text2); margin-top:3px; font-size:11px; }
+  .tt-val { font-family:var(--mono); font-weight:500; color:var(--text); }
+
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--bg4); border-radius:2px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<div id="topbar">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    RIP — Estado do Rio de Janeiro
+    <span class="logo-sub">R3 · MIP 2015 · IBGE/NEREUS · 22 setores</span>
+  </div>
+  <div class="top-filters">
+    <button class="filter-btn active all" onclick="setMode('all',this)">Todos os elos</button>
+    <button class="filter-btn" onclick="setMode('fwd',this)">Para frente ↗</button>
+    <button class="filter-btn" onclick="setMode('bwd',this)">Para trás ↙</button>
+    <button class="filter-btn" onclick="setMode('key',this)">Setores-chave</button>
+    <button class="filter-btn" onclick="setMode('pg',this)">Por PageRank</button>
+  </div>
+  <div class="top-right">
+    <span class="top-stat">setores: <span>22</span></span>
+    <span class="top-stat">IHR máx: <span id="stat-ihr">—</span></span>
+    <span class="top-stat">setores-chave: <span id="stat-key">—</span></span>
+  </div>
+</div>
+
+<div id="left">
+  <div class="panel-section-title">Setores — ordem por IHR</div>
+  <div id="sector-list"></div>
+</div>
+
+<div id="canvas-area">
+  <canvas id="cvs"></canvas>
+  <div class="canvas-hint" id="canvas-hint">Clique em um setor ou encadeamento para inspecionar · Scroll para zoom</div>
+  <div id="sel-overlay"><span class="sel-badge" id="sel-badge-text"></span></div>
+</div>
+
+<div id="right">
+  <div id="rp-content">
+    <div class="rp-empty">
+      <div class="rp-empty-icon">↗</div>
+      <div>Selecione um setor<br>para ver os encadeamentos</div>
+    </div>
+  </div>
+</div>
+
+<div id="bottombar">
+  <div class="legend-strip">
+    <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div>Setor-chave (fwd+bwd &gt; média)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--amber)"></div>Setor líder (bwd)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--blue)"></div>Setor base (fwd)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--gray)"></div>Isolado</div>
+    <div class="leg-item"><div class="leg-line-bwd"></div>Enc. para trás</div>
+    <div class="leg-item"><div class="leg-line-fwd"></div>Enc. para frente</div>
+  </div>
+  <div id="bottom-info">Rasmussen-Hirschmann · Oliveira et al. (2024) · Dados: SCN/IBGE 2015</div>
+</div>
+</div>
+
+<div id="tooltip">
+  <div class="tt-name" id="tt-name"></div>
+  <div class="tt-row"><span>Grau saída (fwd)</span><span class="tt-val" id="tt-fwd"></span></div>
+  <div class="tt-row"><span>Grau entrada (bwd)</span><span class="tt-val" id="tt-bwd"></span></div>
+  <div class="tt-row"><span>IHR (grau total)</span><span class="tt-val" id="tt-ihr"></span></div>
+  <div class="tt-row"><span>PageRank</span><span class="tt-val" id="tt-pg"></span></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DADOS REAIS — Tabela 4 do artigo (R3, estado do RJ, MIP 2015)
+// Oliveira, Passos, Gonçalves, Motta (2024)
+// ═══════════════════════════════════════════════════════════════════
+const sectors = [
+  { id:0,  name:"Comércio e reparação de automotivos",           short:"Comércio",     bwd:3131.94, fwd:3572.02, ihr:6703.96, pr:0.092,
+    desc:"Maior IHR do estado. Fortemente conectado com construção, alimentos, alojamento, atividades científicas, transporte e saúde. Reflete a base comercial e urbana fluminense." },
+  { id:1,  name:"Outras indústrias de manufatura",               short:"Manufatura",   bwd:2705.76, fwd:2723.61, ihr:5429.37, pr:0.095,
+    desc:"Maior PageRank do estado. Conectada com comércio, indústrias extrativas, transporte, financeiras e alojamento. Maior empregadora industrial com 314 mil trabalhadores formais." },
+  { id:2,  name:"Atividades científicas, profissionais e técnicas", short:"C&T Profis.", bwd:1654.94, fwd:3536.63, ihr:5191.57, pr:0.068,
+    desc:"Engloba serviços jurídicos, contabilidade, arquitetura, engenharia, pesquisa, publicidade e consultoria. Inclui sedes da Petrobras e Vale. Alto encadeamento para frente." },
+  { id:3,  name:"Transporte, armazenagem e correio",             short:"Transporte",   bwd:1184.49, fwd:3155.31, ihr:4339.80, pr:0.043,
+    desc:"Rio de Janeiro como hub logístico: Porto do Rio, rodovias, ferrovias, dutovias, metrô, barcas, VLT. A 500 km de 50% do PIB nacional. Saídas por terra, ar e mar." },
+  { id:4,  name:"Eletricidade e gás",                            short:"Energia",      bwd:2020.94, fwd:1756.38, ihr:3777.32, pr:0.087,
+    desc:"SIUP estratégico. Inclui Raízen (Duque de Caxias), termoelétricas a gás, energia solar, eólica, biogás, PCH e o único complexo nuclear do Brasil (Angra dos Reis)." },
+  { id:5,  name:"Indústrias extrativas",                         short:"Extrativa",    bwd:2310.37, fwd:1042.83, ihr:3353.20, pr:0.083,
+    desc:"Atividade industrial mais importante pelo VAB: R$ 70,2 bi (47% da indústria fluminense e 44% do VAB nacional). Extração de petróleo: 79% da produção nacional. Bacias de Campos e Santos." },
+  { id:6,  name:"Construção",                                    short:"Construção",   bwd:1704.19, fwd:1584.65, ihr:3288.84, pr:0.049,
+    desc:"3º estado em VAB e emprego no setor. Fortemente ligado à indústria extrativa, água/saneamento, informação, saúde, comércio, transporte e atividades científicas." },
+  { id:7,  name:"Atividades administrativas e serviços complementares", short:"Adm. Compl.", bwd:658.39, fwd:2347.40, ihr:3005.79, pr:0.032,
+    desc:"Coworking, recepção, arquivamento, atendimento telefônico, apoio administrativo. Alta demanda por outros setores, mas baixo encadeamento para trás. Serviços de escritório." },
+  { id:8,  name:"Informação e comunicação",                      short:"Info. & Com.", bwd:1053.29, fwd:1860.51, ihr:2913.80, pr:0.039,
+    desc:"Serviços B2B intensivos em tecnologia. Forte vínculo com atividades científicas, profissionais e técnicas. Inclui telecomunicações, TI e mídia digital." },
+  { id:9,  name:"Atividades financeiras, de seguros e serviços relacionados", short:"Financeiras", bwd:773.37, fwd:1953.21, ihr:2726.58, pr:0.027,
+    desc:"Segundo maior polo financeiro do Brasil, atrás apenas de São Paulo. Fortemente concentrado na capital. Alto encadeamento para frente para toda a economia." },
+  { id:10, name:"Administração pública, defesa e seguridade social", short:"Adm. Pública", bwd:2060.19, fwd:515.33, ihr:2575.52, pr:0.063,
+    desc:"Forte encadeamento para trás (compra de outros setores). PageRank elevado (qualidade das conexões). Inclui Forças Armadas: Base Naval de Niterói, submarinos em Itaguaí." },
+  { id:11, name:"Alojamento e alimentação",                      short:"Alojamento",   bwd:1196.76, fwd:691.57, ihr:1888.33, pr:0.048,
+    desc:"Conectado com comércio, turismo e indústrias extrativas. Reflexo do perfil urbano e turístico do Rio de Janeiro como destino nacional e internacional." },
+  { id:12, name:"Água, esgoto, gestão de resíduos e descontaminação", short:"Saneamento",  bwd:1126.71, fwd:699.44, ihr:1826.15, pr:0.039,
+    desc:"SIUP essencial. Rio de Janeiro é o 2º maior empregador do país em SIUP, atrás de SP. Inclui saneamento, gestão de resíduos e atividades ambientais distribuídas pelo território." },
+  { id:13, name:"Educação",                                      short:"Educação",     bwd:1297.99, fwd:206.24, ihr:1504.23, pr:0.041,
+    desc:"Campi de UERJ, UFF, UFRRJ, IF Fluminense e IFRJ espalhados pela Região Metropolitana. Alto encadeamento para trás (demanda por insumos educacionais). Vínculo com extrativas e energia." },
+  { id:14, name:"Saúde humana e serviços sociais",               short:"Saúde",        bwd:1442.14, fwd:7.36,   ihr:1449.50, pr:0.053,
+    desc:"Fortemente demandado (alto enc. para trás). Quase sem encadeamento para frente. Conectado ao comércio e construção. Reflexo da base populacional do 3º maior estado do país." },
+  { id:15, name:"Máquinas e equipamentos",                       short:"Máquinas",     bwd:929.86,  fwd:284.50, ihr:1214.36, pr:0.031,
+    desc:"Vinculado ao transporte, comércio e manufatura. Demandado para manutenção das atividades extrativas e logísticas. Encadeamento para trás predominante." },
+  { id:16, name:"Produtos alimentares",                          short:"Alimentos",    bwd:864.36,  fwd:221.23, ihr:1085.59, pr:0.028,
+    desc:"Beneficiamento de alimentos. Vinculado ao comércio e alojamento. Encadeamento predominante para trás, absorvendo insumos de setores primários." },
+  { id:17, name:"Outras atividades de serviços",                 short:"Outros Serv.", bwd:754.05,  fwd:237.28, ihr:991.33,  pr:0.035,
+    desc:"Serviços pessoais, associações, reparação de objetos. Encadeamento moderado para trás e baixo para frente. Capilaridade difusa por toda a economia fluminense." },
+  { id:18, name:"Atividades imobiliárias",                       short:"Imobiliárias", bwd:224.77,  fwd:651.29, ihr:876.06,  pr:0.012,
+    desc:"Baixo encadeamento para trás mas relevante para frente. Abastece outros setores com serviços de locação e gestão de imóveis. Ligado à concentração urbana na RMRJ." },
+  { id:19, name:"Agricultura, pecuária, produção florestal, pesca e aquicultura", short:"Agropec.",    bwd:221.73,  fwd:414.17, ihr:635.90,  pr:0.015,
+    desc:"Baixa representatividade no estado mais urbanizado após o DF. Encadeamento para frente (fornecimento de matéria-prima alimentar) supera o para trás." },
+  { id:20, name:"Artes, cultura, esporte e recreação",           short:"Cultura",      bwd:227.70,  fwd:82.98,  ihr:310.68,  pr:0.014,
+    desc:"Setor com PageRank expressivo na R2 (0,133). No R3 tem IHR baixo, mas impacto qualitativo na economia criativa e no turismo da cidade do Rio de Janeiro." },
+  { id:21, name:"Serviços domésticos",                           short:"Domésticos",   bwd:0,       fwd:0,      ihr:0,       pr:0.007,
+    desc:"Sem encadeamentos produtivos mensuráveis na MIP. Setor de consumo final sem ligações intersetoriais formais. Menor PageRank da rede." },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// ENCADEAMENTOS INTERSETORIAIS — calibrados a partir do artigo R3
+// [from, to, weight_normalized]
+// "from" vende para "to" (from→to = enc. para frente de from / para trás de to)
+// Fonte: Tabela 4 + análise textual das conexões fortes da Figura 4
+// ═══════════════════════════════════════════════════════════════════
+const links = [
+  // Comércio (0) — hub principal
+  [0,  6,  0.90], // Comércio → Construção
+  [0,  16, 0.75], // Comércio → Produtos alimentares
+  [0,  11, 0.80], // Comércio → Alojamento
+  [0,  2,  0.70], // Comércio → C&T Prof.
+  [0,  3,  0.75], // Comércio → Transporte
+  [0,  14, 0.60], // Comércio → Saúde
+  [0,  5,  0.55], // Comércio → Extrativa
+  [0,  9,  0.50], // Comércio → Financeiras
+  // Manufatura (1) — maior PageRank
+  [1,  0,  0.80], // Manufatura → Comércio
+  [1,  5,  0.75], // Manufatura → Extrativa
+  [1,  3,  0.70], // Manufatura → Transporte
+  [1,  9,  0.60], // Manufatura → Financeiras
+  [1,  11, 0.55], // Manufatura → Alojamento
+  [1,  4,  0.50], // Manufatura → Energia
+  // C&T Profissionais (2) — maior enc. para frente
+  [2,  4,  0.85], // C&T → Energia
+  [2,  1,  0.80], // C&T → Manufatura
+  [2,  0,  0.75], // C&T → Comércio
+  [2,  13, 0.65], // C&T → Educação
+  [2,  10, 0.55], // C&T → Adm. Pública
+  [2,  8,  0.60], // C&T → Info. & Com.
+  // Transporte (3) — hub logístico
+  [3,  1,  0.80], // Transporte → Manufatura
+  [3,  0,  0.75], // Transporte → Comércio
+  [3,  15, 0.60], // Transporte → Máquinas
+  [3,  7,  0.65], // Transporte → Adm. Compl.
+  [3,  4,  0.55], // Transporte → Energia
+  // Energia (4) — SIUP
+  [4,  0,  0.65], // Energia → Comércio
+  [4,  1,  0.70], // Energia → Manufatura
+  [4,  5,  0.75], // Energia → Extrativa
+  [4,  6,  0.55], // Energia → Construção
+  [4,  12, 0.50], // Energia → Saneamento
+  // Extrativa (5) — maior VAB industrial
+  [5,  0,  0.70], // Extrativa → Comércio
+  [5,  11, 0.65], // Extrativa → Alojamento
+  [5,  4,  0.80], // Extrativa → Energia
+  [5,  6,  0.60], // Extrativa → Construção
+  [5,  1,  0.75], // Extrativa → Manufatura
+  [5,  9,  0.55], // Extrativa → Financeiras
+  // Construção (6)
+  [6,  5,  0.70], // Construção → Extrativa
+  [6,  12, 0.75], // Construção → Saneamento
+  [6,  8,  0.60], // Construção → Info. & Com.
+  [6,  14, 0.65], // Construção → Saúde
+  [6,  2,  0.55], // Construção → C&T Prof.
+  [6,  3,  0.50], // Construção → Transporte
+  // Adm. Complementar (7)
+  [7,  0,  0.55], // Adm. Compl. → Comércio
+  [7,  3,  0.50], // Adm. Compl. → Transporte
+  // Info. & Com. (8)
+  [8,  2,  0.85], // Info. → C&T Prof.
+  [8,  1,  0.60], // Info. → Manufatura
+  [8,  9,  0.55], // Info. → Financeiras
+  [8,  0,  0.50], // Info. → Comércio
+  // Financeiras (9)
+  [9,  0,  0.70], // Fin. → Comércio
+  [9,  1,  0.65], // Fin. → Manufatura
+  [9,  5,  0.60], // Fin. → Extrativa
+  [9,  6,  0.55], // Fin. → Construção
+  [9,  3,  0.50], // Fin. → Transporte
+  // Adm. Pública (10)
+  [10, 5,  0.65], // Adm. Púb. → Extrativa
+  [10, 1,  0.60], // Adm. Púb. → Manufatura
+  [10, 0,  0.70], // Adm. Púb. → Comércio
+  [10, 2,  0.55], // Adm. Púb. → C&T Prof.
+  [10, 9,  0.50], // Adm. Púb. → Financeiras
+  [10, 6,  0.60], // Adm. Púb. → Construção
+  [10, 12, 0.55], // Adm. Púb. → Saneamento
+  [10, 3,  0.50], // Adm. Púb. → Transporte
+  // Alojamento (11)
+  [11, 0,  0.60], // Alojam. → Comércio
+  [11, 3,  0.50], // Alojam. → Transporte
+  // Saneamento (12) — SIUP
+  [12, 10, 0.55], // Saneamento → Adm. Púb.
+  [12, 6,  0.60], // Saneamento → Construção
+  [12, 4,  0.50], // Saneamento → Energia
+  // Educação (13)
+  [13, 5,  0.60], // Educação → Extrativa
+  [13, 4,  0.65], // Educação → Energia
+  [13, 10, 0.55], // Educação → Adm. Púb.
+  // Saúde (14)
+  [14, 0,  0.55], // Saúde → Comércio
+  [14, 6,  0.50], // Saúde → Construção
+  // Máquinas (15)
+  [15, 3,  0.65], // Máquinas → Transporte
+  [15, 1,  0.60], // Máquinas → Manufatura
+  [15, 5,  0.55], // Máquinas → Extrativa
+  // Produtos Alimentares (16)
+  [16, 0,  0.65], // Alimentos → Comércio
+  [16, 11, 0.60], // Alimentos → Alojamento
+  // Outros Serviços (17)
+  [17, 0,  0.50], // Outros Serv. → Comércio
+  // Imobiliárias (18)
+  [18, 0,  0.55], // Imobil. → Comércio
+  [18, 6,  0.50], // Imobil. → Construção
+  // Agropecuária (19)
+  [19, 16, 0.70], // Agropec. → Alimentos
+  [19, 11, 0.55], // Agropec. → Alojamento
+  [19, 1,  0.50], // Agropec. → Manufatura
+  // Cultura (20)
+  [20, 0,  0.50], // Cultura → Comércio
+  [20, 3,  0.45], // Cultura → Transporte
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// NORMALIZAÇÃO
+// ═══════════════════════════════════════════════════════════════════
+const n = sectors.length;
+const maxFwd = Math.max(...sectors.map(s => s.fwd));
+const maxBwd = Math.max(...sectors.map(s => s.bwd));
+const maxIHR = Math.max(...sectors.map(s => s.ihr));
+const maxPR  = Math.max(...sectors.map(s => s.pr));
+
+sectors.forEach(s => {
+  s.normFwd = s.fwd / maxFwd;
+  s.normBwd = s.bwd / maxBwd;
+  s.normIHR = s.ihr / maxIHR;
+  s.normPR  = s.pr  / maxPR;
+});
+
+// Adjacency for UI
+const sectorLinks = sectors.map(() => ({ out:[], in:[] }));
+links.forEach(([from, to, w]) => {
+  sectorLinks[from].out.push({ id:to, w });
+  sectorLinks[to].in.push({ id:from, w });
+});
+
+function classify(i) {
+  const s = sectors[i];
+  const f = s.normFwd > 0.40, b = s.normBwd > 0.40;
+  if (f && b) return 'key';
+  if (b)      return 'leader';
+  if (f)      return 'base';
+  return 'isolated';
+}
+
+const CLASS_COLOR = {
+  key:      { fill:'#42c97a', stroke:'#2a9456', text:'#061a0d', label:'Setor-chave' },
+  leader:   { fill:'#e8a030', stroke:'#b07020', text:'#1a1000', label:'Setor líder' },
+  base:     { fill:'#4a9eff', stroke:'#2a6fbf', text:'#001020', label:'Setor base' },
+  isolated: { fill:'#4a5068', stroke:'#323548', text:'#e8eaf0', label:'Isolado' },
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// LAYOUT — posições otimizadas para os 22 setores RJ
+// (Fruchterman-Reingold manual, cluster por tipo)
+// ═══════════════════════════════════════════════════════════════════
+const posTemplate = [
+  {x:0.52, y:0.38}, // 0  Comércio (centro)
+  {x:0.38, y:0.52}, // 1  Manufatura
+  {x:0.65, y:0.28}, // 2  C&T Prof.
+  {x:0.50, y:0.60}, // 3  Transporte
+  {x:0.22, y:0.38}, // 4  Energia
+  {x:0.35, y:0.22}, // 5  Extrativa
+  {x:0.68, y:0.52}, // 6  Construção
+  {x:0.78, y:0.38}, // 7  Adm. Compl.
+  {x:0.80, y:0.22}, // 8  Info. & Com.
+  {x:0.82, y:0.60}, // 9  Financeiras
+  {x:0.52, y:0.18}, // 10 Adm. Pública
+  {x:0.68, y:0.72}, // 11 Alojamento
+  {x:0.22, y:0.62}, // 12 Saneamento
+  {x:0.35, y:0.75}, // 13 Educação
+  {x:0.52, y:0.82}, // 14 Saúde
+  {x:0.18, y:0.52}, // 15 Máquinas
+  {x:0.52, y:0.72}, // 16 Alimentos
+  {x:0.85, y:0.75}, // 17 Outros Serv.
+  {x:0.82, y:0.44}, // 18 Imobiliárias
+  {x:0.18, y:0.22}, // 19 Agropec.
+  {x:0.18, y:0.78}, // 20 Cultura
+  {x:0.35, y:0.88}, // 21 Domésticos
+];
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+let mode = 'all';
+let selectedSector = null;
+let selectedLink = null;
+let hoveredSector = null;
+let nodes = [];
+let zoom = 1, panX = 0, panY = 0;
+let isPanning = false, lastMX = 0, lastMY = 0;
+
+// ═══════════════════════════════════════════════════════════════════
+// CANVAS
+// ═══════════════════════════════════════════════════════════════════
+const cvs = document.getElementById('cvs');
+const ctx = cvs.getContext('2d');
+const area = document.getElementById('canvas-area');
+let W, H;
+
+function resize() {
+  W = area.clientWidth; H = area.clientHeight;
+  cvs.width = W * devicePixelRatio; cvs.height = H * devicePixelRatio;
+  cvs.style.width = W+'px'; cvs.style.height = H+'px';
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  buildNodes(); draw();
+}
+
+function buildNodes() {
+  const pad = 55;
+  const baseR = Math.max(14, Math.min(22, W * 0.024));
+  nodes = sectors.map((s, i) => {
+    const p = posTemplate[i];
+    return {
+      ...s,
+      px: pad + p.x * (W - pad*2),
+      py: pad + p.y * (H - pad*2),
+      r: baseR + Math.round(s.normIHR * 9),
+      cls: classify(i),
+    };
+  });
+}
+
+function worldToScreen(wx, wy) {
+  return [(wx - W/2) * zoom + W/2 + panX, (wy - H/2) * zoom + H/2 + panY];
+}
+function screenToWorld(sx, sy) {
+  return [(sx - W/2 - panX) / zoom + W/2, (sy - H/2 - panY) / zoom + H/2];
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DRAW
+// ═══════════════════════════════════════════════════════════════════
+function linkIsActive(from, to) {
+  if (selectedLink) return from === selectedLink.from && to === selectedLink.to;
+  if (selectedSector !== null) return from === selectedSector || to === selectedSector;
+  return true;
+}
+function sectorIsActive(i) {
+  if (selectedLink) return i === selectedLink.from || i === selectedLink.to;
+  if (selectedSector !== null) {
+    const adj = new Set([selectedSector]);
+    sectorLinks[selectedSector].out.forEach(l => adj.add(l.id));
+    sectorLinks[selectedSector].in.forEach(l  => adj.add(l.id));
+    return adj.has(i);
+  }
+  return true;
+}
+
+function drawArrow(fx, fy, tx, ty, dashed, color, alpha, lw) {
+  const dx = tx-fx, dy = ty-fy, len = Math.sqrt(dx*dx+dy*dy);
+  if (len < 1) return;
+  const ux = dx/len, uy = dy/len;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lw;
+  if (dashed) ctx.setLineDash([5*zoom,4*zoom]); else ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(tx - ux*9*zoom, ty - uy*9*zoom); ctx.stroke();
+  ctx.setLineDash([]);
+  const ang = Math.atan2(ty-fy, tx-fx);
+  const as = 9*zoom;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(tx, ty);
+  ctx.lineTo(tx - Math.cos(ang-0.42)*as, ty - Math.sin(ang-0.42)*as);
+  ctx.lineTo(tx - Math.cos(ang+0.42)*as, ty - Math.sin(ang+0.42)*as);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  // dot grid
+  ctx.fillStyle = 'rgba(255,255,255,0.022)';
+  for (let x = 30; x < W; x += 40)
+    for (let y = 30; y < H; y += 40) {
+      ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI*2); ctx.fill();
+    }
+  ctx.restore();
+
+  const hasSel = selectedSector !== null || selectedLink !== null;
+
+  // edges
+  links.forEach(([from, to, w]) => {
+    if (mode === 'key' && classify(from) !== 'key' && classify(to) !== 'key') return;
+    if (mode === 'pg'  && sectors[from].normPR < 0.35 && sectors[to].normPR < 0.35) return;
+    const active = linkIsActive(from, to);
+    const alpha  = hasSel ? (active ? 0.88 : 0.018) : 0.30;
+    const lw = Math.max(0.7, w * 2.4) * zoom;
+    const a = nodes[from], b = nodes[to];
+    const [ax,ay] = worldToScreen(a.px, a.py);
+    const [bx,by] = worldToScreen(b.px, b.py);
+    const ar = a.r * zoom, br = b.r * zoom;
+    const dx=bx-ax,dy=by-ay,len=Math.sqrt(dx*dx+dy*dy);
+    if (len<1) return;
+    const ux=dx/len,uy=dy/len;
+    // backward: b buys from a
+    if (mode !== 'fwd') drawArrow(bx-ux*br, by-uy*br, ax+ux*ar, ay+uy*ar, false, '#e8a030', alpha, lw);
+    // forward: a sells to b
+    if (mode !== 'bwd') drawArrow(ax+ux*ar, ay+uy*ar, bx-ux*br, by-uy*br, true, '#4a9eff', alpha * 0.72, lw*0.72);
+  });
+
+  // nodes
+  nodes.forEach((nd, i) => {
+    const c = CLASS_COLOR[nd.cls];
+    const isActive = sectorIsActive(i);
+    const isSel    = selectedSector === i;
+    const alpha    = hasSel ? (isActive ? 1 : 0.08) : 1;
+    const [px, py] = worldToScreen(nd.px, nd.py);
+    const r = nd.r * zoom;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (isSel) { ctx.shadowColor = c.fill; ctx.shadowBlur = 24; }
+    ctx.beginPath(); ctx.arc(px, py, r + (isSel ? 3*zoom : 0), 0, Math.PI*2);
+    ctx.fillStyle = c.fill; ctx.fill();
+    ctx.strokeStyle = c.stroke; ctx.lineWidth = isSel ? 2.2 : 0.8;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    if (r > 8) {
+      const fs = Math.max(8, Math.min(12, r * 0.50));
+      ctx.font = `600 ${fs}px var(--sans,sans-serif)`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = c.text;
+      ctx.fillText(nd.short, px, py);
+    }
+
+    // IHR badge on hover/select
+    if ((isSel || hoveredSector === i) && r > 10) {
+      ctx.font = `500 ${Math.max(8,Math.min(10,r*0.38))}px var(--mono,monospace)`;
+      ctx.fillStyle = '#4a9eff';
+      ctx.fillText(`↗${nd.normFwd.toFixed(2)}`, px - r*0.5, py - r - 10*zoom);
+      ctx.fillStyle = '#e8a030';
+      ctx.fillText(`↙${nd.normBwd.toFixed(2)}`, px + r*0.5, py - r - 10*zoom);
+    }
+    ctx.restore();
+  });
+
+  // selected link label
+  if (selectedLink) {
+    const a = nodes[selectedLink.from], b = nodes[selectedLink.to];
+    const [ax,ay] = worldToScreen(a.px,a.py);
+    const [bx,by] = worldToScreen(b.px,b.py);
+    const mx=(ax+bx)/2, my=(ay+by)/2;
+    const lnk = links.find(l=>l[0]===selectedLink.from&&l[1]===selectedLink.to);
+    ctx.save();
+    ctx.fillStyle='rgba(13,15,20,0.85)';
+    ctx.beginPath(); ctx.roundRect(mx-38,my-13,76,24,4); ctx.fill();
+    ctx.font='500 11px var(--mono,monospace)';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='#e8a030';
+    ctx.fillText(`w: ${lnk?lnk[2].toFixed(2):'?'}`, mx, my);
+    ctx.restore();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HIT TEST
+// ═══════════════════════════════════════════════════════════════════
+function hitNode(sx, sy) {
+  for (let i = 0; i < nodes.length; i++) {
+    const nd = nodes[i];
+    const [px,py] = worldToScreen(nd.px, nd.py);
+    const r = nd.r * zoom;
+    if ((sx-px)**2+(sy-py)**2 <= (r+6)**2) return i;
+  }
+  return null;
+}
+
+function hitEdge(sx, sy) {
+  for (const [from, to, w] of links) {
+    const a=nodes[from],b=nodes[to];
+    const [ax,ay]=worldToScreen(a.px,a.py);
+    const [bx,by]=worldToScreen(b.px,b.py);
+    const mx=(ax+bx)/2,my=(ay+by)/2;
+    if ((sx-mx)**2+(sy-my)**2<20**2) return {from,to};
+    const dx=bx-ax,dy=by-ay,len=Math.sqrt(dx*dx+dy*dy);
+    if (len<1) continue;
+    const t=Math.max(0,Math.min(1,((sx-ax)*dx+(sy-ay)*dy)/(len*len)));
+    const px=ax+t*dx,py=ay+t*dy;
+    if (Math.sqrt((sx-px)**2+(sy-py)**2)<7&&t>0.15&&t<0.85) return {from,to};
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════════════════════════════
+function getXY(e) {
+  const r=cvs.getBoundingClientRect();
+  return [e.clientX-r.left, e.clientY-r.top];
+}
+
+cvs.addEventListener('wheel', e => {
+  e.preventDefault();
+  const [mx,my]=getXY(e);
+  const delta = e.deltaY > 0 ? 0.88 : 1.14;
+  const newZoom = Math.max(0.4, Math.min(4, zoom*delta));
+  panX = mx - (mx-panX)*(newZoom/zoom) - W/2*(1-newZoom/zoom);
+  panY = my - (my-panY)*(newZoom/zoom) - H/2*(1-newZoom/zoom);
+  zoom = newZoom; draw();
+}, {passive:false});
+
+cvs.addEventListener('mousedown', e => {
+  if (e.button===1||e.altKey) { isPanning=true; lastMX=e.clientX; lastMY=e.clientY; cvs.style.cursor='grab'; }
+});
+window.addEventListener('mousemove', e => {
+  if (isPanning) { panX+=e.clientX-lastMX; panY+=e.clientY-lastMY; lastMX=e.clientX; lastMY=e.clientY; draw(); }
+});
+window.addEventListener('mouseup', () => { isPanning=false; cvs.style.cursor='default'; });
+
+cvs.addEventListener('mousemove', e => {
+  if (isPanning) return;
+  const [sx,sy]=getXY(e);
+  const hn=hitNode(sx,sy);
+  hoveredSector=hn;
+  const tt=document.getElementById('tooltip');
+  if (hn!==null) {
+    const s=sectors[hn];
+    document.getElementById('tt-name').textContent=s.name;
+    document.getElementById('tt-fwd').textContent=s.fwd.toLocaleString('pt-BR');
+    document.getElementById('tt-bwd').textContent=s.bwd.toLocaleString('pt-BR');
+    document.getElementById('tt-ihr').textContent=s.ihr.toLocaleString('pt-BR');
+    document.getElementById('tt-pg').textContent=s.pr.toFixed(3);
+    let tx=e.clientX+16,ty=e.clientY+10;
+    if(tx+220>window.innerWidth)tx=e.clientX-224;
+    if(ty+120>window.innerHeight)ty=e.clientY-124;
+    tt.style.left=tx+'px'; tt.style.top=ty+'px'; tt.style.opacity='1';
+    cvs.style.cursor='pointer';
+  } else {
+    const he=selectedSector===null?hitEdge(sx,sy):null;
+    cvs.style.cursor=he?'pointer':'default';
+    tt.style.opacity='0';
+  }
+  draw();
+});
+
+cvs.addEventListener('click', e => {
+  if (isPanning) return;
+  const [sx,sy]=getXY(e);
+  const hn=hitNode(sx,sy);
+  if (hn!==null) {
+    selectedLink=null;
+    selectedSector = selectedSector===hn ? null : hn;
+    updateSidebar(); updateSectorList();
+  } else {
+    const he=hitEdge(sx,sy);
+    if (he) {
+      selectedSector=null;
+      selectedLink=(selectedLink&&selectedLink.from===he.from&&selectedLink.to===he.to)?null:he;
+      updateLinkPanel(); updateSectorList();
+    } else {
+      selectedSector=null; selectedLink=null;
+      updateSidebar(); updateSectorList();
+    }
+  }
+  const ov=document.getElementById('sel-overlay');
+  if (selectedSector!==null) { ov.classList.add('visible'); document.getElementById('sel-badge-text').textContent=sectors[selectedSector].short; }
+  else ov.classList.remove('visible');
+  draw(); updateBottomInfo();
+});
+
+cvs.addEventListener('mouseleave',()=>{ document.getElementById('tooltip').style.opacity='0'; hoveredSector=null; draw(); });
+
+// ═══════════════════════════════════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════════════════════════════════
+function updateSidebar() {
+  const rp=document.getElementById('rp-content');
+  if (selectedSector===null) {
+    rp.innerHTML=`<div class="rp-empty"><div class="rp-empty-icon">↗</div><div>Selecione um setor<br>para ver os encadeamentos</div></div>`;
+    return;
+  }
+  const i=selectedSector, s=sectors[i];
+  const c=CLASS_COLOR[classify(i)];
+  const rank=sectors.slice().sort((a,b)=>b.ihr-a.ihr).findIndex(x=>x.id===i)+1;
+  const outs=sectorLinks[i].out.slice().sort((a,b)=>b.w-a.w);
+  const ins =sectorLinks[i].in.slice().sort( (a,b)=>b.w-a.w);
+  const outH=outs.map(l=>{const tc=CLASS_COLOR[classify(l.id)];return`<div class="link-row" onclick="selectSector(${l.id})"><div class="link-dot" style="background:${tc.fill}"></div><span class="link-name">${sectors[l.id].name}</span><span class="link-weight fwd">${l.w.toFixed(2)}</span></div>`;}).join('')||'<div style="color:var(--text3);font-size:11px;padding:5px 9px">Nenhum encadeamento para frente</div>';
+  const inH =ins.map(l=>{const tc=CLASS_COLOR[classify(l.id)];return`<div class="link-row" onclick="selectSector(${l.id})"><div class="link-dot" style="background:${tc.fill}"></div><span class="link-name">${sectors[l.id].name}</span><span class="link-weight bwd">${l.w.toFixed(2)}</span></div>`;}).join('')||'<div style="color:var(--text3);font-size:11px;padding:5px 9px">Nenhum encadeamento para trás</div>';
+  rp.innerHTML=`
+    <div class="rp-title">${s.name}</div>
+    <div class="rp-rank">#${rank} em IHR · PageRank: ${s.pr.toFixed(3)}</div>
+    <span class="rp-type" style="background:${c.fill}22;color:${c.fill}">${c.label}</span>
+    <div class="desc-block">${s.desc}</div>
+    <div class="ihr-block">
+      <div class="ihr-label">Índice Hirschmann-Rasmussen (IHR)</div>
+      <div class="ihr-val">${s.ihr.toLocaleString('pt-BR',{maximumFractionDigits:2})}</div>
+      <div class="ihr-sub">Grau ponderado total · Posição #${rank} entre 22 setores</div>
+    </div>
+    <div class="rp-metrics">
+      <div class="rp-metric"><div class="rp-metric-label">Grau saída (fwd)</div><div class="rp-metric-val fwd">${s.fwd.toLocaleString('pt-BR',{maximumFractionDigits:0})}</div></div>
+      <div class="rp-metric"><div class="rp-metric-label">Grau entrada (bwd)</div><div class="rp-metric-val bwd">${s.bwd.toLocaleString('pt-BR',{maximumFractionDigits:0})}</div></div>
+    </div>
+    <div class="rp-bar-row"><div class="rp-bar-label"><span>Enc. para frente (norm.)</span><span>${s.normFwd.toFixed(3)}</span></div><div class="rp-bar-track"><div class="rp-bar-fill fwd" style="width:${s.normFwd*100}%"></div></div></div>
+    <div class="rp-bar-row"><div class="rp-bar-label"><span>Enc. para trás (norm.)</span><span>${s.normBwd.toFixed(3)}</span></div><div class="rp-bar-track"><div class="rp-bar-fill bwd" style="width:${s.normBwd*100}%"></div></div></div>
+    <div class="rp-bar-row"><div class="rp-bar-label"><span>PageRank™</span><span>${s.pr.toFixed(3)}</span></div><div class="rp-bar-track"><div class="rp-bar-fill pg" style="width:${s.normPR*100}%"></div></div></div>
+    <div class="rp-section"><div class="rp-section-title">Vende para — enc. para frente</div>${outH}</div>
+    <div class="rp-section"><div class="rp-section-title">Compra de — enc. para trás</div>${inH}</div>`;
+}
+
+function updateLinkPanel() {
+  const rp=document.getElementById('rp-content');
+  if (!selectedLink) { updateSidebar(); return; }
+  const {from,to}=selectedLink;
+  const lnk=links.find(l=>l[0]===from&&l[1]===to);
+  const w=lnk?lnk[2]:0;
+  const cf=CLASS_COLOR[classify(from)], ct=CLASS_COLOR[classify(to)];
+  const sf=sectors[from], st=sectors[to];
+  rp.innerHTML=`
+    <div class="rp-title" style="font-size:13px;margin-bottom:10px">Encadeamento selecionado</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <span style="background:${cf.fill}22;color:${cf.fill};padding:4px 9px;border-radius:6px;font-size:11px;font-weight:600">${sf.short}</span>
+      <span style="color:var(--text3);font-size:13px">→</span>
+      <span style="background:${ct.fill}22;color:${ct.fill};padding:4px 9px;border-radius:6px;font-size:11px;font-weight:600">${st.short}</span>
+    </div>
+    <div class="desc-block" style="font-size:11px">
+      <strong>${sf.name}</strong> fornece insumos para <strong>${st.name}</strong>.<br>
+      Enc. <em>para trás</em> de ${st.short} · Enc. <em>para frente</em> de ${sf.short}.<br>
+      Peso normalizado: <strong>${w.toFixed(2)}</strong>
+    </div>
+    <div class="rp-metrics">
+      <div class="rp-metric"><div class="rp-metric-label">Peso do elo</div><div class="rp-metric-val fwd">${w.toFixed(3)}</div></div>
+      <div class="rp-metric"><div class="rp-metric-label">Intensidade</div><div class="rp-metric-val" style="font-size:13px;color:var(--amber)">${w>0.7?'Alta':w>0.5?'Média':'Moderada'}</div></div>
+    </div>
+    <div class="rp-section"><div class="rp-section-title">Fornecedor: ${sf.short}</div>
+      <div class="rp-bar-row"><div class="rp-bar-label"><span>IHR normalizado</span><span>${sf.normIHR.toFixed(3)}</span></div><div class="rp-bar-track"><div class="rp-bar-fill fwd" style="width:${sf.normIHR*100}%"></div></div></div>
+      <div class="rp-bar-row"><div class="rp-bar-label"><span>PageRank™</span><span>${sf.pr.toFixed(3)}</span></div><div class="rp-bar-track"><div class="rp-bar-fill pg" style="width:${sf.normPR*100}%"></div></div></div>
+    </div>
+    <div class="rp-section"><div class="rp-section-title">Comprador: ${st.short}</div>
+      <div class="rp-bar-row"><div class="rp-bar-label"><span>IHR normalizado</span><span>${st.normIHR.toFixed(3)}</span></div><div class="rp-bar-track"><div class="rp-bar-fill bwd" style="width:${st.normIHR*100}%"></div></div></div>
+      <div class="rp-bar-row"><div class="rp-bar-label"><span>PageRank™</span><span>${st.pr.toFixed(3)}</span></div><div class="rp-bar-track"><div class="rp-bar-fill pg" style="width:${st.normPR*100}%"></div></div></div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+      <button style="font-size:11px;padding:5px 10px;border:1px solid var(--border2);border-radius:6px;background:transparent;color:var(--text2);cursor:pointer;font-family:var(--sans)" onclick="selectSector(${from})">Ver ${sf.short} →</button>
+      <button style="font-size:11px;padding:5px 10px;border:1px solid var(--border2);border-radius:6px;background:transparent;color:var(--text2);cursor:pointer;font-family:var(--sans)" onclick="selectSector(${to})">Ver ${st.short} →</button>
+    </div>`;
+}
+
+function selectSector(i) {
+  selectedLink=null; selectedSector=i;
+  updateSidebar(); updateSectorList();
+  document.getElementById('sel-overlay').classList.add('visible');
+  document.getElementById('sel-badge-text').textContent=sectors[i].short;
+  draw(); updateBottomInfo();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LEFT PANEL
+// ═══════════════════════════════════════════════════════════════════
+function buildSectorList() {
+  const sorted = sectors.slice().sort((a,b)=>b.ihr-a.ihr);
+  const list=document.getElementById('sector-list');
+  list.innerHTML=sorted.map((s,rank)=>{
+    const c=CLASS_COLOR[classify(s.id)];
+    return`<div class="sector-list-item" id="sli-${s.id}" onclick="selectSector(${s.id})">
+      <span class="rank-num">${rank+1}</span>
+      <div class="sector-dot" style="background:${c.fill}"></div>
+      <div class="sector-name-col">
+        <div class="sector-name">${s.name}</div>
+        <div class="sector-type">${c.label} · IHR ${s.ihr.toLocaleString('pt-BR',{maximumFractionDigits:0})}</div>
+      </div>
+      <div class="sector-bars">
+        <div class="mini-bar-wrap"><div class="mini-bar fwd" style="width:${s.normFwd*100}%"></div></div>
+        <div class="mini-bar-wrap"><div class="mini-bar bwd" style="width:${s.normBwd*100}%"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateSectorList() {
+  sectors.forEach((_,i)=>{
+    const el=document.getElementById('sli-'+i);
+    if(el) el.classList.toggle('selected',i===selectedSector);
+  });
+}
+
+function updateStats() {
+  const keys=sectors.filter((_,i)=>classify(i)==='key');
+  document.getElementById('stat-ihr').textContent=maxIHR.toLocaleString('pt-BR',{maximumFractionDigits:0});
+  document.getElementById('stat-key').textContent=keys.length;
+}
+
+function updateBottomInfo() {
+  const el=document.getElementById('bottom-info');
+  if (selectedSector!==null) {
+    const s=sectors[selectedSector];
+    el.textContent=`${s.name} · fwd: ${s.fwd.toLocaleString('pt-BR',{maximumFractionDigits:0})} · bwd: ${s.bwd.toLocaleString('pt-BR',{maximumFractionDigits:0})} · IHR: ${s.ihr.toLocaleString('pt-BR',{maximumFractionDigits:0})} · PR: ${s.pr.toFixed(3)}`;
+  } else if (selectedLink) {
+    el.textContent=`Elo: ${sectors[selectedLink.from].name} → ${sectors[selectedLink.to].name}`;
+  } else {
+    el.textContent='Rasmussen-Hirschmann · Oliveira et al. (2024) · Dados: SCN/IBGE 2015 · Alt+drag para mover · Scroll para zoom';
+  }
+}
+
+function setMode(m, btn) {
+  mode=m;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active','all','fwd','bwd','key','pg'));
+  btn.classList.add('active',m);
+  selectedSector=null; selectedLink=null;
+  document.getElementById('sel-overlay').classList.remove('visible');
+  updateSidebar(); updateSectorList(); draw(); updateBottomInfo();
+}
+
+buildSectorList(); updateStats(); resize();
+window.addEventListener('resize', resize);
+</script>
+</body>
+</html>
